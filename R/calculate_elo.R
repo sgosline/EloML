@@ -288,23 +288,31 @@ calculate_epp <- function(results, decreasing_metric = TRUE, compare_in_round = 
                           keep_columns = FALSE, keep_model = FALSE,
                           reference = NULL, keep_data = TRUE, estimation = "glmnet"){
   # some cleaning to make unified naming
-  players_results <- results[, 1:3]
-  colnames(players_results) <- c("player", "round", "score")
-  players_results <- players_results[order(players_results[["player"]], players_results[["round"]]),]
-  players_results[, "player"] <- factor(players_results[["player"]])
+  players_results <- results[, 1:3] ##SG: Make sure we only get 3 columns
+  colnames(players_results) <- c("player", "round", "score") ## SGrename columns
+  players_results <- players_results[order(players_results[["player"]], players_results[["round"]]),] ##SG sort results by player (model)
+  players_results[, "player"] <- factor(players_results[["player"]]) #SG change into factor from string
+
+  #SGthis is the meat of it - runs each player against themselves for each round
   actual_score <- calculate_actual_wins(results = players_results,
                                         decreasing_metric = decreasing_metric,
                                         compare_in_round=compare_in_round)
+  # SG build linear model matrix based on player/round
   glm_model_matrix <- prepare_model_matrix(actual_score)
 
+  ##SG model fitting enables conversions of wins/losses to probabilistic framework
+  ##essentially fitting a model and recentering the scores so that positive scores are
+  ##better and negative scores are worse and 0 is the average
   if(estimation == "glm"){
     model_epp <- fit_glm_model(glm_model_matrix, actual_score)
+    ##SG this does the actual scoring
     epp_list <- create_summary_model_glm(model_epp, player_names = colnames(glm_model_matrix),  reference)
     # epp_list[nrow(epp_list),2] <- 0
   }else if(estimation == "glmnet"){
     glm_model_matrix_sparse <- Matrix(glm_model_matrix, sparse = TRUE)
     glm_model_matrix <- Matrix(glm_model_matrix, sparse = TRUE)
     model_epp <- fit_glmnet_model(glm_model_matrix_sparse, actual_score)
+    ##SG: this does the actual scoring
     epp_list <- create_summary_model_glmnet(model_epp, player_names = colnames(glm_model_matrix_sparse), reference)
 
   }
